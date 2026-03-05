@@ -1,0 +1,344 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.Design;
+using System.Globalization;
+using System.IO;
+using System.Xml.Linq;
+
+internal class Assesmenttracker
+{
+    static void Main(string[] args)
+    {
+        string textFile = "assessment.txt";
+        Console.WriteLine("Current directory: " + Directory.GetCurrentDirectory());
+
+        // Initialise an empty collection 
+        List<string> assessments = LoadAssessmentsFromFile(textFile);
+        Console.WriteLine("Current directory: " + Directory.GetCurrentDirectory());
+
+        // to exit the loop
+        bool exit = false;
+
+        // While exit == false
+        while (!exit)
+        {
+            // Display the menu options
+            Console.WriteLine("===== Assessment Tracker =====");
+            Console.WriteLine("\nMenu:");
+            Console.WriteLine("1. View All Assessments");
+            Console.WriteLine("2. Add New Assessment");
+            Console.WriteLine("3. Mark Assessment Complete");
+            Console.WriteLine("4. Mark Assessment In Progress");
+            Console.WriteLine("5. Delete Assessment");
+            Console.WriteLine("6. Exit");
+            Console.Write("Select an option: ");
+
+            string input = Console.ReadLine();
+
+            switch (input)
+            {
+                case "1":
+                    DisplayAssessments(assessments);
+                    break;
+
+                case "2":
+                    AddAssessment(assessments, textFile);
+                    break;
+
+                case "3":
+                    MarkAssessmentComplete(assessments, textFile);
+                    break;
+
+                case "4":
+                    MarkAssessmentInProgress(assessments, textFile);
+                    break;
+
+                case "5":
+                    DeleteAssessment(assessments, textFile);
+                    break;
+
+                case "6":
+                    exit = true;
+                    break;
+
+                default:
+                    Console.WriteLine("Invalid option, please try again.");
+                    break;
+            }
+
+            if (!exit)// Call pause 
+            {
+                Pause();
+            }
+        }
+
+        Console.WriteLine("Goodbye!");
+    }
+    static void Pause()
+    {
+        Console.WriteLine();
+        Console.WriteLine("Press any key to continue...");
+        Console.ReadKey();
+    }
+
+    // Load assessments from file 
+
+    static List<string> LoadAssessmentsFromFile(string filePath)
+    {
+        List<string> assessmentList = new List<string>();
+
+        // Check if the file exists
+        if (File.Exists(filePath))
+        {
+            // Open the file in read mode
+            using (StreamReader reader = new StreamReader(filePath))
+            {
+                string line;
+
+                // Read each line until end of file
+                while ((line = reader.ReadLine()) != null)
+                {
+                    // Process each non-empty line
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        // Add the assessment to the list
+                        assessmentList.Add(line);
+                    }
+                }
+            }
+        }
+
+        // Return the list (leave empty if file did not exist)
+        return assessmentList;
+    }
+    //Add Assessments to file
+    static void WriteAssessmentsToFile(List<string> assessmentList, string filePath)
+    {
+        using (StreamWriter writer = new StreamWriter(filePath))
+        {
+            foreach (string assessment in assessmentList)
+            {
+                writer.WriteLine(assessment);
+            }
+        }
+    }
+
+    //display all Assessments 
+    static void DisplayAssessments(List<string> assessments)
+    {
+        //if list is empty
+        if (assessments.Count == 0)
+        {
+            Console.WriteLine("No Assessments to Display");
+        }
+
+        else
+        {
+            //loopthrough list 
+            for (int i = 0; i < assessments.Count; i++)
+            {
+                string[] parts = assessments[i].Split('|');
+                // Expecting: date | name | unit | type | status
+
+                if (parts.Length == 5)
+                {
+                    string date = parts[0];
+                    string name = parts[1];
+                    string unit = parts[2];
+                    string type = parts[3];
+                    string status = parts[4];
+
+                    Console.WriteLine($"{i + 1}. Date: {date}, Name: {name}, Unit: {unit}, Type: {type} Status: {status} ");
+                }
+                else
+                {
+                    // Fallback if line is not in expected format
+                    Console.WriteLine($"{i + 1}. {assessments[i]}");
+                }
+            }
+        }
+    }
+
+
+
+    // Add a new Assessment
+    static void AddAssessment(List<string> assessments, string filePath)
+    {
+        Console.Write("Enter date Due (e.g. 26/02/2026): ");
+        string date = Console.ReadLine();
+
+        if (!DateTime.TryParseExact(
+                date,
+                "dd/MM/yyyy",
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime expandedDate))
+        {
+            Console.WriteLine("invalid date format");
+            return;
+        }
+
+        Console.Write("Enter Assessment Name/Number : ");
+        string assessmentName = Console.ReadLine();
+
+        Console.Write("Enter Assessment Unit/Cluster name: ");
+        string assessmentClass = Console.ReadLine();
+
+        Console.Write("Enter Assessment Type : ");
+        string assessmentType = Console.ReadLine();
+
+        string status = "NotStarted";   // all new assessments start as NotStarted
+
+        if (string.IsNullOrWhiteSpace(assessmentName) ||
+           string.IsNullOrWhiteSpace(assessmentClass) ||
+           string.IsNullOrWhiteSpace(assessmentType))
+        {
+            Console.WriteLine("All fields are required.");
+            return;
+        }
+
+
+        string newAssessment = $"{expandedDate:dd-MM-yyyy}|{assessmentName}|{assessmentClass}|{assessmentType}|{status}";
+
+        assessments.Add(newAssessment);
+        WriteAssessmentsToFile(assessments, filePath);
+
+        Console.WriteLine("Assessment added successfully.");
+        Console.WriteLine($"Added: Date: {expandedDate:dd-MM-yyyy}, Name: {assessmentName}, Unit: {assessmentClass}, Type: {assessmentType}, Status: {status}");
+    }
+
+    // Mark assessment as complete
+
+    static void MarkAssessmentComplete(List<string> assessments, string filePath)
+    {
+        if (assessments.Count == 0)
+        {
+            Console.WriteLine("No Assessments to Complete.");
+            return;
+        }
+        //prompt for Assessment number 
+        DisplayAssessments(assessments);
+
+        Console.Write("Which Assessment to Mark Complete: ");
+        string input = Console.ReadLine();
+
+        if (!int.TryParse(input, out int index))
+        {
+            Console.WriteLine("Invalid input Please enter a number.");
+        }
+        index = index - 1;
+
+        if (index < 0 || index >= assessments.Count)
+        {
+            Console.WriteLine("Invalid Number, Please enter a number from the list.");
+            return;
+        }
+        //get and update assessment
+        string line = assessments[index];
+        string[] parts = line.Split('|');
+
+        if (parts.Length == 5)
+        {
+
+            if (parts[4] == "Complete")
+            {
+                Console.WriteLine(" Selection is already complete");
+                return;
+            }
+            parts[4] = "Complete";
+
+            string updatedLine = string.Join("|", parts);
+            assessments[index] = updatedLine;
+
+            WriteAssessmentsToFile(assessments, filePath);
+            Console.WriteLine("Assessment marked as complete.");
+        }
+        else
+        {
+            Console.WriteLine(" Selection is already complete");
+        }
+    }
+
+
+        // Mark assessment as InProgress
+        static void MarkAssessmentInProgress(List<string> assessments, string filePath)
+        {
+            if (assessments.Count == 0)
+            {
+                Console.WriteLine("No assessments to update.");
+                return;
+            }
+
+            DisplayAssessments(assessments);
+
+            Console.Write("Enter the number of the assessment to mark In Progress: ");
+            string input = Console.ReadLine();
+
+            if (!int.TryParse(input, out int index))
+            {
+                Console.WriteLine("Invalid input. Please enter a number.");
+                return;
+            }
+
+            index = index - 1;
+
+            if (index < 0 || index >= assessments.Count)
+            {
+                Console.WriteLine("Invalid number. Please choose a number from the list.");
+                return;
+            }
+
+            string line = assessments[index];
+            string[] parts = line.Split('|');
+
+            if (parts.Length == 5)
+            {
+                if (parts[4] == "InProgress")
+            {
+                Console.WriteLine("Selection is already In Progress.");
+                return;
+            }
+                if (parts[4] == "Complete")
+            {
+                Console.WriteLine("Cannot change status of a completed assessment.");
+                return;
+            }
+            parts[4] = "InProgress";
+            string updatedLine = string.Join("|", parts);
+                assessments[index] = updatedLine;
+
+                WriteAssessmentsToFile(assessments, filePath);
+                Console.WriteLine("Assessment marked as In Progress.");
+            }
+            else
+            {
+                Console.WriteLine("Selected assessment has an invalid format.");
+            }
+        }
+
+       // Delete an Assessment
+        static void DeleteAssessment(List<string> assessments, string filePath)
+        {
+            if (assessments.Count == 0)
+            {
+                Console.WriteLine("No Assessments to delete.");
+                return;
+            }
+
+            DisplayAssessments(assessments);
+            Console.Write("Enter the Assessment to delete: ");
+            string input = Console.ReadLine();
+
+            if (int.TryParse(input, out int index) &&
+                index >= 1 && index <= assessments.Count)
+            {
+                assessments.RemoveAt(index - 1);
+                WriteAssessmentsToFile(assessments, filePath);
+                Console.WriteLine("Assessment deleted.");
+            }
+            else
+            {
+                Console.WriteLine("Invalid number.");
+            }
+        }
+    }
+
+
